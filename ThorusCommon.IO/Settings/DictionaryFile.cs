@@ -1,7 +1,7 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 
 namespace ThorusCommon.IO.Settings
 {
@@ -9,10 +9,9 @@ namespace ThorusCommon.IO.Settings
 
     public class DictionaryFile
     {
-        object _lock = new object();
-        Dictionary<string, string> _nodes = new Dictionary<string, string>();
-        FileSystemWatcher _fsw;
-        string _filePath;
+        private readonly object _lock = new object();
+        private Dictionary<string, string> _nodes = new Dictionary<string, string>();
+        private readonly string _filePath;
 
         public event DictionaryUpdatedHandler DictionaryUpdated;
 
@@ -66,21 +65,11 @@ namespace ThorusCommon.IO.Settings
 
             ReadFile();
 
-            _fsw = new FileSystemWatcher(fi.DirectoryName, $"*{fi.Extension}"); // fi.Extension includes the leading dot character (.)
-            _fsw.Changed += OnFileChanged;
-            _fsw.Created += OnFileChanged;
-            _fsw.Deleted += OnFileChanged;
-            _fsw.EnableRaisingEvents = true;
-        }
-
-        private void _fsw_Deleted(object sender, FileSystemEventArgs e)
-        {
-            throw new NotImplementedException();
-        }
-
-        private void _fsw_Created(object sender, FileSystemEventArgs e)
-        {
-            throw new NotImplementedException();
+            var fsw = new FileSystemWatcher(fi.DirectoryName, $"*{fi.Extension}"); // fi.Extension includes the leading dot character (.)
+            fsw.Changed += OnFileChanged;
+            fsw.Created += OnFileChanged;
+            fsw.Deleted += OnFileChanged;
+            fsw.EnableRaisingEvents = true;
         }
 
         private void OnFileChanged(object sender, FileSystemEventArgs e)
@@ -113,7 +102,7 @@ namespace ThorusCommon.IO.Settings
             try
             {
                 var content = File.ReadAllText(_filePath);
-                var nodes = JsonConvert.DeserializeObject<Dictionary<string, string>>(content);
+                var nodes = JsonSerializer.Deserialize<Dictionary<string, string>>(content);
 
                 if (nodes?.Count > 0)
                 {
@@ -129,7 +118,9 @@ namespace ThorusCommon.IO.Settings
             }
             catch
             {
+                // Not interested in actual exception
             }
+
             return false;
         }
 
@@ -137,12 +128,14 @@ namespace ThorusCommon.IO.Settings
         {
             try
             {
-                var content = JsonConvert.SerializeObject(Nodes, Formatting.Indented);
+                var content = JsonSerializer.Serialize(Nodes, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(_filePath, content);
             }
             catch
             {
+                // Not interested in actual exception
             }
+
             return false;
         }
     }

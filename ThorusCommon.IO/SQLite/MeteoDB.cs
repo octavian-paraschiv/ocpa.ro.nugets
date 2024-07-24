@@ -6,19 +6,11 @@ using System.Reflection;
 
 namespace ThorusCommon.SQLite
 {
-    public partial class MeteoDB
+    public class MeteoDB
     {
         private SQLiteConnection _db = null;
         private string _origPath = null;
-
-        static readonly string _templatePath;
-
-        const int RequiredSchemaVersion = 2;
-
-        static MeteoDB()
-        {
-            _templatePath = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "Template.db3");
-        }
+        private static readonly string _templatePath = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "Template.db3");
 
         public static MeteoDB OpenOrCreate(string path, bool write)
         {
@@ -48,11 +40,8 @@ namespace ThorusCommon.SQLite
         {
             Close();
 
-            if (!File.Exists(_origPath))
-            {
-                if (File.Exists(_templatePath))
-                    _origPath = _templatePath;
-            }
+            if (!File.Exists(_origPath) && File.Exists(_templatePath))
+                _origPath = _templatePath;
 
             SQLiteOpenFlags flags =
                 write ? SQLiteOpenFlags.ReadWrite : SQLiteOpenFlags.ReadOnly;
@@ -90,7 +79,7 @@ namespace ThorusCommon.SQLite
             }
         }
 
-        private Dictionary<string, Data> _dataToSave = new Dictionary<string, Data>();
+        private readonly Dictionary<string, Data> _dataToSave = new Dictionary<string, Data>();
 
         public void AddMatrix(int regionId, string timestamp, string type, DenseMatrix m)
         {
@@ -110,7 +99,7 @@ namespace ThorusCommon.SQLite
                             RegionId = regionId,
                             Timestamp = timestamp
                         });
-                    };
+                    }
 
                     d = _dataToSave[key];
 

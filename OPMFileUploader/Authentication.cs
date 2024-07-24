@@ -22,17 +22,23 @@ namespace OPMFileUploader
             try
             {
                 var field = _extAsm?.GetType("ext")?.GetField(method, BindingFlags.Static | BindingFlags.Public);
-                switch ((args?.Length).GetValueOrDefault())
+                if (field != null)
                 {
-                    case 0:
-                        return (field.GetValue(null) as Func<string>)();
-                    case 1:
-                        return (field.GetValue(null) as Func<string, string>)(args[0] as string);
-                    case 2:
-                        return (field.GetValue(null) as Func<string, string, string>)(args[0] as string, args[1] as string);
+                    switch ((args?.Length).GetValueOrDefault())
+                    {
+                        case 0:
+                            return (field.GetValue(null) as Func<string>)();
+                        case 1:
+                            return (field.GetValue(null) as Func<string, string>)(args[0] as string);
+                        case 2:
+                            return (field.GetValue(null) as Func<string, string, string>)(args[0] as string, args[1] as string);
+                    }
                 }
             }
-            catch { }
+            catch
+            {
+                // not relevant
+            }
 
             return null;
         }

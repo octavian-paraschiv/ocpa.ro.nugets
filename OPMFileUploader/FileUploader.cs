@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -8,13 +7,9 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-
-namespace System.Runtime.CompilerServices
-{
-    public class IsExternalInit { }
-}
 
 namespace OPMFileUploader
 {
@@ -27,23 +22,17 @@ namespace OPMFileUploader
         private readonly string _loginId;
         private readonly string _password;
 
-        private ManualResetEventSlim _completed = new ManualResetEventSlim(false);
+        private readonly ManualResetEventSlim _completed = new ManualResetEventSlim(false);
 
         public event Action<double> FileUploadProgress;
 
-
-        private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-
-
         private AuthenticateResponse _tokenResponse = null;
-
-        private long _sent, _total;
 
 
         public FileUploader(string uploadUrl, string authUrl, string uploadFilePath, string loginId, string password)
         {
             _uploadUrl = uploadUrl ?? throw new ArgumentNullException(nameof(uploadUrl));
-            _authUrl = authUrl ?? throw new ArgumentNullException(nameof(_authUrl));
+            _authUrl = authUrl ?? throw new ArgumentNullException(nameof(authUrl));
             _uploadFilePath = uploadFilePath ?? throw new ArgumentNullException(nameof(uploadFilePath));
 
             _loginId = loginId;
@@ -55,13 +44,11 @@ namespace OPMFileUploader
             if (_completed.Wait(0))
                 throw new InvalidOperationException($"A {nameof(FileUploader)} instance cannot be reused. Create a new instance to upload another file.");
 
-            _cancellationTokenSource = new CancellationTokenSource();
-
             string s = null;
 
             try
             {
-                s = await PerformUpload(_cancellationTokenSource.Token);
+                s = await PerformUpload(new CancellationTokenSource().Token);
             }
             catch (Exception ex)
             {
@@ -94,7 +81,7 @@ namespace OPMFileUploader
                 }
 
                 if (!(compressedData?.Length > 0))
-                    throw new Exception();
+                    throw new OperationCanceledException();
 
                 using (MemoryStream input = new MemoryStream(compressedData))
                 using (var client = new HttpClient())
@@ -105,16 +92,15 @@ namespace OPMFileUploader
                     client.DefaultRequestHeaders.Authorization = await Authorize(cancellationToken);
 
                     var file = new ProgressableStreamContent
-                    {
-                        Content = new StreamContent(input),
-                        CancellationToken = cancellationToken,
-                        Progress = (sent, total) =>
+                    (
+                        content: new StreamContent(input),
+                        cancellationToken: cancellationToken,
+                        progress: (sent, total) =>
                         {
-                            _sent = sent;
-                            _total = Math.Max(1, total); // to avoid divide by 0
-                            FileUploadProgress?.Invoke((100 * sent) / total);
+                            total = Math.Max(1, total); // to avoid divide by 0
+                            FileUploadProgress?.Invoke((100 * sent) / (double)total);
                         }
-                    };
+                    );
 
                     var fileName = Path.GetFileName(_uploadFilePath);
 
@@ -138,10 +124,10 @@ namespace OPMFileUploader
                                 res = "";
                             }
 
-                            throw new Exception($"{response.StatusCode}: {res}");
+                            throw new OperationCanceledException($"{response.StatusCode}: {res}");
                         }
 
-                        throw new Exception($"{response.StatusCode}");
+                        throw new OperationCanceledException($"{response.StatusCode}");
                     }
                 }
             }
@@ -191,10 +177,10 @@ namespace OPMFileUploader
 
                         var x = await cl.PostAsync(_authUrl, content, cancellationToken);
 
-                        var rspBody = await x.Content?.ReadAsStringAsync();
+                        string rspBody = (x?.Content != null) ? await x.Content.ReadAsStringAsync() : null;
 
                         if (!string.IsNullOrEmpty(rspBody))
-                            _tokenResponse = JsonConvert.DeserializeObject<AuthenticateResponse>(rspBody);
+                            _tokenResponse = JsonSerializer.Deserialize<AuthenticateResponse>(rspBody);
                     }
                 }
                 catch
@@ -209,16 +195,20 @@ namespace OPMFileUploader
             return new AuthenticationHeaderValue("Bearer", _tokenResponse.Token);
         }
 
-        private class ProgressableStreamContent : HttpContent
+        private sealed class ProgressableStreamContent : HttpContent
         {
             const int BufferSize = 20 * 1024;
 
-            public HttpContent Content { private get; init; }
-            public Action<long, long> Progress { private get; init; }
-            public CancellationToken CancellationToken { private get; init; }
+            private readonly HttpContent _content;
+            private readonly Action<long, long> _progress;
+            private readonly CancellationToken _cancellationToken;
 
-            public ProgressableStreamContent() : base()
+            public ProgressableStreamContent(HttpContent content, Action<long, long> progress,
+                CancellationToken cancellationToken) : base()
             {
+                _content = content ?? throw new ArgumentNullException(nameof(content));
+                _progress = progress ?? throw new ArgumentNullException(nameof(progress));
+                _cancellationToken = cancellationToken;
             }
 
             protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
@@ -230,47 +220,48 @@ namespace OPMFileUploader
                     TryComputeLength(out size);
                     var uploaded = 0;
 
-                    using (var sinput = await Content?.ReadAsStreamAsync())
+                    using (var sinput = await _content.ReadAsStreamAsync())
                     {
                         while (true)
                         {
-                            CancellationToken.ThrowIfCancellationRequested();
+                            _cancellationToken.ThrowIfCancellationRequested();
 
                             var length = sinput.Read(buffer, 0, buffer.Length);
                             if (length <= 0)
                                 break;
 
                             uploaded += length;
-                            Progress?.Invoke(uploaded, size);
+                            _progress?.Invoke(uploaded, size);
 
                             stream.Write(buffer, 0, length);
                             stream.Flush();
                         }
                     }
+
                     stream.Flush();
                 });
             }
 
             protected override bool TryComputeLength(out long length)
             {
-                length = (Content?.Headers?.ContentLength).GetValueOrDefault();
+                length = (_content.Headers?.ContentLength).GetValueOrDefault();
                 return true;
             }
 
             protected override void Dispose(bool disposing)
             {
                 if (disposing)
-                    Content?.Dispose();
+                    _content.Dispose();
 
                 base.Dispose(disposing);
             }
         }
 
-        private class AuthenticateResponse
+        private sealed class AuthenticateResponse
         {
-            public string LoginId { get; set; }
-            public string Token { get; set; }
-            public DateTime Expires { get; set; }
+            public string LoginId { get; set; } = string.Empty;
+            public string Token { get; set; } = string.Empty;
+            public DateTime Expires { get; set; } = DateTime.MinValue;
         }
     }
 }
