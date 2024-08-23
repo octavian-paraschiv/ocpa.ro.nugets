@@ -8,6 +8,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -259,8 +260,13 @@ namespace OPMFileUploader
 
         private sealed class AuthenticateResponse
         {
+            [JsonPropertyName("loginId")]
             public string LoginId { get; set; } = string.Empty;
+
+            [JsonPropertyName("token")]
             public string Token { get; set; } = string.Empty;
+
+            [JsonPropertyName("expires")]
             public DateTime Expires { get; set; } = DateTime.MinValue;
         }
     }
