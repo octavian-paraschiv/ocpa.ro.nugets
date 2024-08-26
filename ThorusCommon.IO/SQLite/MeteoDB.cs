@@ -1,4 +1,5 @@
 ﻿using MathNet.Numerics.LinearAlgebra.Single;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,7 +7,7 @@ using System.Reflection;
 
 namespace ThorusCommon.SQLite
 {
-    public class MeteoDB
+    public class MeteoDB : IDisposable
     {
         private SQLiteConnection _db = null;
         private string _origPath = null;
@@ -60,6 +61,8 @@ namespace ThorusCommon.SQLite
         }
 
         private List<Region> _regions = null;
+        private bool disposedValue;
+
         public List<Region> Regions
         {
             get
@@ -114,7 +117,9 @@ namespace ThorusCommon.SQLite
 
         public void SaveAndClose()
         {
-            _db.InsertAll(_dataToSave.Values);
+            if (_dataToSave?.Count > 0)
+                _db.InsertAll(_dataToSave.Values);
+
             _db.Execute("VACUUM"); // Shrink DB
             Close();
         }
@@ -128,6 +133,24 @@ namespace ThorusCommon.SQLite
         {
             _db.InsertAll(values);
             _db.Execute("VACUUM"); // Shrink DB
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                    SaveAndClose();
+
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }
