@@ -12,6 +12,7 @@ namespace ThorusCommon.SQLite
         private SQLiteConnection _db = null;
         private string _origPath = null;
         private static readonly string _templatePath = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "Template.db3");
+        private bool _write = false;
 
         public static MeteoDB OpenOrCreate(string path, bool write)
         {
@@ -46,6 +47,8 @@ namespace ThorusCommon.SQLite
 
             SQLiteOpenFlags flags =
                 write ? SQLiteOpenFlags.ReadWrite : SQLiteOpenFlags.ReadOnly;
+
+            _write = write;
 
             _db = new SQLiteConnection(_origPath, flags);
         }
@@ -117,10 +120,14 @@ namespace ThorusCommon.SQLite
 
         public void SaveAndClose()
         {
-            if (_dataToSave?.Count > 0)
-                _db.InsertAll(_dataToSave.Values);
+            if (_write)
+            {
+                if (_dataToSave?.Count > 0)
+                    _db.InsertAll(_dataToSave.Values);
 
-            _db.Execute("VACUUM"); // Shrink DB
+                _db.Execute("VACUUM"); // Shrink DB
+            }
+
             Close();
         }
 
