@@ -22,10 +22,11 @@ namespace ThorusCommon.SQLite
                 return new MeteoDB(path, write);
             }
 
-            if (write && File.Exists(_templatePath))
+            if (File.Exists(_templatePath))
             {
                 // Create new DB from DB template
                 File.Copy(_templatePath, path, true);
+
                 return new MeteoDB(path, write);
             }
 
