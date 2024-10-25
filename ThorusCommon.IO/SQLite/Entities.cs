@@ -2,17 +2,18 @@
 //Changes to this file will be lost if the code is regenerated.
 // See the blog post here for help on using the generated code: http://erikej.blogspot.dk/2014/10/database-first-with-sqlite-in-universal.html
 using System;
-using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using ThorusCommon.IO.Converters;
 
 namespace ThorusCommon.SQLite
-{ 
+{
     public partial class Data
     {
         [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
-    
+
         public String Timestamp { get; set; }
-    
+
         [NotNull]
         public string RegionCode { get; set; }
 
@@ -24,62 +25,115 @@ namespace ThorusCommon.SQLite
 
         [NotNull]
         public float C_00 { get; set; }
-    
+
         [NotNull]
         public float F_SI { get; set; }
-    
+
         [NotNull]
         public float L_00 { get; set; }
-    
+
         [NotNull]
         public float N_00 { get; set; }
-    
+
         [NotNull]
         public float N_DD { get; set; }
-    
+
         [NotNull]
         public float P_00 { get; set; }
-    
+
         [NotNull]
         public float P_01 { get; set; }
-    
+
         [NotNull]
         public float R_00 { get; set; }
-    
+
         [NotNull]
         public float R_DD { get; set; }
-    
+
         [NotNull]
         public float T_01 { get; set; }
-    
+
         [NotNull]
         public float T_NH { get; set; }
-    
+
         [NotNull]
         public float T_NL { get; set; }
-    
+
         [NotNull]
         public float T_SH { get; set; }
-    
+
         [NotNull]
         public float T_SL { get; set; }
-    
+
         [NotNull]
         public float T_TE { get; set; }
-    
+
         [NotNull]
         public float T_TS { get; set; }
-    
+
         [NotNull]
         public float W_00 { get; set; }
-    
+
         [NotNull]
         public float W_01 { get; set; }
-    
+
         [NotNull]
         public float W_10 { get; set; }
-    
+
         [NotNull]
-        public float W_11 { get; set; }    
+        public float W_11 { get; set; }
+    }
+
+    public class Region
+    {
+        [PrimaryKey, AutoIncrement]
+        public int Id { get; set; }
+
+        [Unique]
+        public string Name { get; set; }
+
+        [Unique]
+        public string Code { get; set; }
+
+        [JsonConverter(typeof(NumberTruncateJsonConverter<double>))]
+        public double MinLon { get; set; }
+
+        [JsonConverter(typeof(NumberTruncateJsonConverter<double>))]
+        public double MaxLon { get; set; }
+
+        [JsonConverter(typeof(NumberTruncateJsonConverter<double>))]
+        public double MinLat { get; set; }
+
+        [JsonConverter(typeof(NumberTruncateJsonConverter<double>))]
+        public double MaxLat { get; set; }
+
+        [JsonConverter(typeof(NumberTruncateJsonConverter<double>))]
+        public double GridResolution { get; set; }
+    }
+
+    public class City
+    {
+        [PrimaryKey, AutoIncrement]
+        public int Id { get; set; }
+
+        public string Name { get; set; }
+
+        public int RegionId { get; set; }
+
+        public string Subregion { get; set; }
+
+        [JsonConverter(typeof(NumberTruncateJsonConverter<double>))]
+        public double Lat { get; set; }
+
+        [JsonConverter(typeof(NumberTruncateJsonConverter<double>))]
+        public double Lon { get; set; }
+
+        public bool Default { get; set; }
+    }
+
+    public class GridCoordinates
+    {
+        public int R { get; set; }
+        public int C { get; set; }
     }
 }
