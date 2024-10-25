@@ -14,7 +14,7 @@ namespace ThorusCommon.SQLite
         public String Timestamp { get; set; }
     
         [NotNull]
-        public int RegionId { get; set; }
+        public string RegionCode { get; set; }
 
         [NotNull]
         public int R { get; set; }
@@ -82,31 +82,4 @@ namespace ThorusCommon.SQLite
         [NotNull]
         public float W_11 { get; set; }    
     }
-
-    public partial class Region
-    {
-        [PrimaryKey, AutoIncrement]
-        public int Id { get; set; }
-    
-        [Unique(Name = "sqlite_autoindex_Region_1", Order = 0)]
-        [NotNull]
-        public String Name { get; set; }
-    
-        [NotNull]
-        public float MinLon { get; set; }
-    
-        [NotNull]
-        public float MaxLon { get; set; }
-    
-        [NotNull]
-        public float MinLat { get; set; }
-    
-        [NotNull]
-        public float MaxLat { get; set; }
-    
-        [NotNull]
-        public float GridResolution { get; set; }
-    
-    }
-
 }

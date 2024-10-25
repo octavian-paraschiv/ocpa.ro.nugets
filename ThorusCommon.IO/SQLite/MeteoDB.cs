@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 
 namespace ThorusCommon.SQLite
@@ -64,19 +63,7 @@ namespace ThorusCommon.SQLite
             }
         }
 
-        private List<Region> _regions = null;
         private bool disposedValue;
-
-        public List<Region> Regions
-        {
-            get
-            {
-                if (_regions == null)
-                    _regions = _db.Table<Region>().ToList();
-
-                return _regions;
-            }
-        }
 
         public TableQuery<Data> Data
         {
@@ -88,13 +75,13 @@ namespace ThorusCommon.SQLite
 
         private readonly Dictionary<string, Data> _dataToSave = new Dictionary<string, Data>();
 
-        public void AddMatrix(int regionId, string timestamp, string type, DenseMatrix m)
+        public void AddMatrix(string regionCode, string timestamp, string type, DenseMatrix m)
         {
             for (int r = 0; r < m.RowCount; r++)
             {
                 for (int c = 0; c < m.ColumnCount; c++)
                 {
-                    string key = $"{regionId}_{timestamp}_{r}_{c}";
+                    string key = $"{regionCode}_{timestamp}_{r}_{c}";
                     Data d = null;
 
                     if (!_dataToSave.ContainsKey(key))
@@ -103,7 +90,7 @@ namespace ThorusCommon.SQLite
                         {
                             C = c,
                             R = r,
-                            RegionId = regionId,
+                            RegionCode = regionCode,
                             Timestamp = timestamp
                         });
                     }
