@@ -66,9 +66,16 @@ namespace ThorusCommon.SQLite
 
         private bool disposedValue;
 
-        public TableQuery<Data> GetData(string regionCode, GridCoordinates gc, int skip, int take, int precision = 2)
+        public TableQuery<Data> GetData(string regionCode = "RO",
+            GridCoordinates gc = null,
+            int skip = 0,
+            int take = -1,
+            int precision = 2)
         {
             float mul = (float)Math.Pow(10, -precision);
+
+            if (gc == null)
+                gc = new GridCoordinates { R = 0, C = 0 };
 
             return _db.Table<Data>()
                 .Where(d => d.RegionCode == regionCode && d.R == gc.R && d.C == gc.C)
