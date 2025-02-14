@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
 namespace ThorusCommon.SQLite
@@ -65,18 +66,42 @@ namespace ThorusCommon.SQLite
 
         private bool disposedValue;
 
-        public TableQuery<Data> Data
+        public TableQuery<Data> GetData(string regionCode, GridCoordinates gc, int skip, int take, int precision = 2)
         {
-            get
-            {
-                return _db.Table<Data>();
-            }
+            float mul = (float)Math.Pow(10, -precision);
+
+            return _db.Table<Data>()
+                .Where(d => d.RegionCode == regionCode && d.R == gc.R && d.C == gc.C)
+                .OrderBy(d => d.Timestamp)
+                .Skip(skip)
+                .Take(take)
+                .Select(d => DataBuilder(d, f => mul * f));
         }
+
+        private static Data DataBuilder(Data input, Func<float, float> func)
+        {
+            var data = new Data();
+
+            typeof(Data)
+               .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+               .Where(pi => pi.PropertyType == typeof(float))
+               .ToList()
+               .ForEach(pi =>
+               {
+                   var inVal = (float)pi.GetValue(input);
+                   pi.SetValue(data, func(inVal));
+               });
+
+            return data;
+        }
+
 
         private readonly Dictionary<string, Data> _dataToSave = new Dictionary<string, Data>();
 
-        public void AddMatrix(string regionCode, string timestamp, string type, DenseMatrix m)
+        public void AddMatrix(string regionCode, string timestamp, string type, DenseMatrix m, int precision = 2)
         {
+            int mul = (int)Math.Pow(10, precision);
+
             for (int r = 0; r < m.RowCount; r++)
             {
                 for (int c = 0; c < m.ColumnCount; c++)
@@ -99,11 +124,9 @@ namespace ThorusCommon.SQLite
 
                     var pi = d.GetType().GetProperty(type);
                     if (pi != null)
-                        pi.SetValue(d, m[r, c]);
+                        pi.SetValue(d, (int)(mul * m[r, c]));
                 }
             }
-
-
         }
 
         public void SaveAndClose()
