@@ -66,7 +66,7 @@ namespace ThorusCommon.SQLite
 
         private bool disposedValue;
 
-        public TableQuery<Data> GetData(string regionCode = "RO",
+        public IEnumerable<Data> GetData(string regionCode = "RO",
             GridCoordinates gc = null,
             int skip = 0,
             int take = -1,
@@ -82,6 +82,7 @@ namespace ThorusCommon.SQLite
                 .OrderBy(d => d.Timestamp)
                 .Skip(skip)
                 .Take(take)
+                .AsEnumerable()
                 .Select(d => DataBuilder(d, f => mul * f));
         }
 
@@ -91,12 +92,15 @@ namespace ThorusCommon.SQLite
 
             typeof(Data)
                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-               .Where(pi => pi.PropertyType == typeof(float))
                .ToList()
                .ForEach(pi =>
                {
-                   var inVal = (float)pi.GetValue(input);
-                   pi.SetValue(data, func(inVal));
+                   var inVal = pi.GetValue(input);
+
+                   if (pi.PropertyType == typeof(float))
+                       pi.SetValue(data, func((float)inVal));
+                   else
+                       pi.SetValue(data, inVal);
                });
 
             return data;
