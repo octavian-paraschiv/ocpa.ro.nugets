@@ -1,18 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard20</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <OutputPath>..\bin\</OutputPath>
-      <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
-      <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-      <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-      <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-      <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-      <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-      <Description>$(AssemblyName)</Description>
-      <PackageLicenseExpression>MIT</PackageLicenseExpression>
-      <Authors>octavian-paraschiv</Authors>
-      <RepositoryUrl>https://github.com/octavian-paraschiv/ocpa.ro.nugets</RepositoryUrl>
-      <PackageVersion>1.0.0.0</PackageVersion>
+    <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Description>$(AssemblyName)</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Authors>octavian-paraschiv</Authors>
+    <RepositoryUrl>https://github.com/octavian-paraschiv/ocpa.ro.nugets</RepositoryUrl>
+    <PackageVersion>1.0.0.0</PackageVersion>
   </PropertyGroup>
   <ItemGroup>
     <None Include="Template.db3">
@@ -28,6 +28,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
-    <PackageReference Include="System.Text.Json" Version="9.0.2" />
+    <PackageReference Include="System.Text.Json" Version="9.0.4" />
   </ItemGroup>
 </Project>

@@ -1458,13 +1458,10 @@ namespace ThorusCommon.SQLite
             }
             catch (SQLiteException ex)
             {
-
                 if (ex.Result == SQLite3.Result.Constraint && SQLite3.ExtendedErrCode(this.Handle) == SQLite3.ExtendedResult.ConstraintNotNull)
-                {
                     throw NotNullConstraintViolationException.New(ex, map, obj);
-                }
 
-                throw ex;
+                throw;
             }
 
             return rowsAffected;
