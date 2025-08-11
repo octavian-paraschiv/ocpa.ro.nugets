@@ -15,18 +15,6 @@
     <PackageVersion>1.0.0.0</PackageVersion>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="Template.db3">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="sqlite3.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Pack>true</Pack>
-      <PackagePath>lib/$(TargetFramework)</PackagePath>
-    </Content>
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
     <PackageReference Include="System.Text.Json" Version="9.0.4" />
   </ItemGroup>
