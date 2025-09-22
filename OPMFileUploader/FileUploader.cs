@@ -1,43 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using FileUploader;
+using System;
 using System.IO;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace OPMFileUploader
 {
-    public class FileUploader
+    public class FileUploader : BaseUploader
     {
-        private readonly string _uploadUrl;
-        private readonly string _authUrl;
         private readonly string _uploadFilePath;
-
-        private readonly string _loginId;
-        private readonly string _password;
-
-        private readonly ManualResetEventSlim _completed = new ManualResetEventSlim(false);
-
         public event Action<double> FileUploadProgress;
 
-        private AuthenticateResponse _tokenResponse = null;
-
-
-        public FileUploader(string uploadUrl, string authUrl, string uploadFilePath, string loginId, string password)
+        public FileUploader(string requestUrl, string authUrl, string uploadFilePath, string loginId, string password)
+            : base(requestUrl, authUrl, loginId, password)
         {
-            _uploadUrl = uploadUrl ?? throw new ArgumentNullException(nameof(uploadUrl));
-            _authUrl = authUrl ?? throw new ArgumentNullException(nameof(authUrl));
             _uploadFilePath = uploadFilePath ?? throw new ArgumentNullException(nameof(uploadFilePath));
-
-            _loginId = loginId;
-            _password = password;
         }
 
         public async Task<string> Run()
@@ -109,7 +90,7 @@ namespace OPMFileUploader
                     multiForm.Add(new StringContent(signature), "signature"); // Add the file signature
                     multiForm.Add(file, "data", fileName); // Add the file
 
-                    var response = await client.PostAsync(_uploadUrl, multiForm);
+                    var response = await client.PostAsync(_requestUrl, multiForm);
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         if (response.Content != null)
@@ -138,62 +119,6 @@ namespace OPMFileUploader
             }
 
             return string.Empty;
-        }
-
-        private static string GetHMACSHA1Hash(byte[] inputBytes, string key)
-        {
-            byte[] keyBytes = Encoding.UTF8.GetBytes(key);
-
-            using (var ms = new MemoryStream(inputBytes))
-            using (var hmac = new HMACSHA1(keyBytes))
-            {
-                var hash = hmac.ComputeHash(ms);
-                return Convert.ToBase64String(hash);
-            }
-        }
-
-        private async Task<AuthenticationHeaderValue> Authorize(CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrEmpty(_loginId))
-                return null;
-
-            if (_tokenResponse == null ||
-                DateTime.UtcNow.Subtract(_tokenResponse.Expires).TotalMilliseconds > 0)
-            {
-                var dict = new Dictionary<string, string>
-                {
-                    { "LoginId", _loginId },
-                    { "Password", Authentication.sendHash(_loginId, _password) }
-                };
-
-                var content = new FormUrlEncodedContent(dict);
-                content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
-
-                try
-                {
-                    using (HttpClient cl = new HttpClient())
-                    {
-                        cl.Timeout = TimeSpan.FromSeconds(30);
-                        cl.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue { NoCache = true };
-
-                        var x = await cl.PostAsync(_authUrl, content, cancellationToken);
-
-                        string rspBody = (x?.Content != null) ? await x.Content.ReadAsStringAsync() : null;
-
-                        if (!string.IsNullOrEmpty(rspBody))
-                            _tokenResponse = JsonSerializer.Deserialize<AuthenticateResponse>(rspBody);
-                    }
-                }
-                catch
-                {
-                    _tokenResponse = null;
-                }
-            }
-
-            if (_tokenResponse?.Token == null)
-                throw new HttpRequestException("Unauthorized");
-
-            return new AuthenticationHeaderValue("Bearer", _tokenResponse.Token);
         }
 
         private sealed class ProgressableStreamContent : HttpContent
@@ -256,18 +181,6 @@ namespace OPMFileUploader
 
                 base.Dispose(disposing);
             }
-        }
-
-        private sealed class AuthenticateResponse
-        {
-            [JsonPropertyName("loginId")]
-            public string LoginId { get; set; } = string.Empty;
-
-            [JsonPropertyName("token")]
-            public string Token { get; set; } = string.Empty;
-
-            [JsonPropertyName("expires")]
-            public DateTime Expires { get; set; } = DateTime.MinValue;
         }
     }
 }
