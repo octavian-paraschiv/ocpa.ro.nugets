@@ -5,19 +5,14 @@ using System.Text.Json.Serialization;
 
 namespace ThorusCommon.IO.Converters
 {
-    public class NumberTruncateJsonConverter<T> : JsonConverter<T>
+    public class NumberTruncateJsonConverter<T>(int decimalPlaces) : JsonConverter<T>
     {
         public const int DecimalPlaces = 2;
 
-        private readonly int _decimalPlaces;
+        private readonly int _decimalPlaces = Math.Min(8, Math.Max(0, decimalPlaces));
 
         public NumberTruncateJsonConverter() : this(DecimalPlaces)
         {
-        }
-
-        public NumberTruncateJsonConverter(int decimalPlaces)
-        {
-            _decimalPlaces = Math.Min(8, Math.Max(0, decimalPlaces));
         }
 
         public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

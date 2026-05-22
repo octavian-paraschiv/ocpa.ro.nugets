@@ -1,51 +1,50 @@
 ﻿using System;
 using System.Reflection;
 
-namespace OPMFileUploader
+namespace FileUploader;
+
+public static class Authentication
 {
-    public static class Authentication
+    static readonly Assembly _extAsm = Load();
+
+    private static Assembly Load()
     {
-        static readonly Assembly _extAsm = load();
+        using var stream = typeof(Authentication).Assembly.GetManifestResourceStream("FileUploader.ext.dll");
+        var bytes = new byte[stream.Length];
 
-        private static Assembly load()
-        {
-            using (var stream = typeof(Authentication).Assembly.GetManifestResourceStream("FileUploader.ext.dll"))
-            {
-                var bytes = new byte[stream.Length];
-                stream.Read(bytes, 0, bytes.Length);
-                return Assembly.Load(bytes);
-            }
-        }
+        _ = stream.Read(bytes, 0, bytes.Length);
 
-        private static string ext(string method, params object[] args)
+        return Assembly.Load(bytes);
+    }
+
+    private static string Ext(string method, params object[] args)
+    {
+        try
         {
-            try
+            var field = _extAsm?.GetType("ext")?.GetField(method, BindingFlags.Static | BindingFlags.Public);
+            if (field != null)
             {
-                var field = _extAsm?.GetType("ext")?.GetField(method, BindingFlags.Static | BindingFlags.Public);
-                if (field != null)
+                switch ((args?.Length).GetValueOrDefault())
                 {
-                    switch ((args?.Length).GetValueOrDefault())
-                    {
-                        case 0:
-                            return (field.GetValue(null) as Func<string>)();
-                        case 1:
-                            return (field.GetValue(null) as Func<string, string>)(args[0] as string);
-                        case 2:
-                            return (field.GetValue(null) as Func<string, string, string>)(args[0] as string, args[1] as string);
-                    }
+                    case 0:
+                        return (field.GetValue(null) as Func<string>)();
+                    case 1:
+                        return (field.GetValue(null) as Func<string, string>)(args[0] as string);
+                    case 2:
+                        return (field.GetValue(null) as Func<string, string, string>)(args[0] as string, args[1] as string);
                 }
             }
-            catch
-            {
-                // not relevant
-            }
-
-            return null;
+        }
+        catch
+        {
+            // not relevant
         }
 
-        public static string hash(string user, string pass) => ext("h", user, pass);
-        public static string sendHash(string user, string pass) => ext("i", user, pass);
-        public static string getSeed(string reqPass) => ext("j", reqPass);
-        public static string calcHash(string userPassHash, string seed) => ext("k", userPassHash, seed);
+        return null;
     }
+
+    public static string Hash(string user, string pass) => Ext("h", user, pass);
+    public static string SendHash(string user, string pass) => Ext("i", user, pass);
+    public static string GetSeed(string reqPass) => Ext("j", reqPass);
+    public static string CalcHash(string userPassHash, string seed) => Ext("k", userPassHash, seed);
 }

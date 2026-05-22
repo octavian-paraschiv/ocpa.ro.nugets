@@ -9,11 +9,13 @@ namespace ThorusCommon.IO.Settings
 
     public class DictionaryFile
     {
-        private readonly object _lock = new object();
-        private Dictionary<string, string> _nodes = new Dictionary<string, string>();
+        private readonly object _lock = new();
+        private Dictionary<string, string> _nodes = [];
         private readonly string _filePath;
 
         public event DictionaryUpdatedHandler DictionaryUpdated;
+
+        private static readonly JsonSerializerOptions _serializationOptions = new JsonSerializerOptions { WriteIndented = true };
 
         public Dictionary<string, string> Nodes
         {
@@ -45,22 +47,18 @@ namespace ThorusCommon.IO.Settings
                 {
                     if (value != null)
                     {
-                        if (_nodes.ContainsKey(key))
+                        if (!_nodes.TryAdd(key, value))
                             _nodes[key] = value;
-                        else
-                            _nodes.Add(key, value);
                     }
-                    else if (_nodes.ContainsKey(key))
-                    {
+                    else
                         _nodes.Remove(key);
-                    }
                 }
             }
         }
 
         public DictionaryFile(string path)
         {
-            FileInfo fi = new FileInfo(path);
+            var fi = new FileInfo(path);
             _filePath = fi.FullName;
 
             ReadFile();
@@ -69,6 +67,7 @@ namespace ThorusCommon.IO.Settings
             fsw.Changed += OnFileChanged;
             fsw.Created += OnFileChanged;
             fsw.Deleted += OnFileChanged;
+
             fsw.EnableRaisingEvents = true;
         }
 
@@ -97,7 +96,7 @@ namespace ThorusCommon.IO.Settings
             }
         }
 
-        private bool ReadFile()
+        private void ReadFile()
         {
             try
             {
@@ -112,7 +111,6 @@ namespace ThorusCommon.IO.Settings
                     }
 
                     DictionaryUpdated?.Invoke();
-                    return true;
                 }
 
             }
@@ -120,15 +118,13 @@ namespace ThorusCommon.IO.Settings
             {
                 // Not interested in actual exception
             }
-
-            return false;
         }
 
         public bool SaveFile()
         {
             try
             {
-                var content = JsonSerializer.Serialize(Nodes, new JsonSerializerOptions { WriteIndented = true });
+                var content = JsonSerializer.Serialize(Nodes, _serializationOptions);
                 File.WriteAllText(_filePath, content);
             }
             catch

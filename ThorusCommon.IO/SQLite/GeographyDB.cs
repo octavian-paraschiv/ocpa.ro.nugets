@@ -1,84 +1,83 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace ThorusCommon.SQLite
+namespace ThorusCommon.IO.SQLite;
+
+public class GeographyDB : IDisposable
 {
-    public class GeographyDB : IDisposable
+    private SQLiteConnection _db = null;
+    private readonly string _path = null;
+
+    public GeographyDB(string path, bool write)
     {
-        private SQLiteConnection _db = null;
-        private readonly string _path = null;
+        _path = path;
+        ReOpen(write);
+    }
 
-        public GeographyDB(string path, bool write)
+    private void ReOpen(bool write)
+    {
+        Close();
+
+        SQLiteOpenFlags flags =
+            write ? SQLiteOpenFlags.ReadWrite : SQLiteOpenFlags.ReadOnly;
+
+        _db = new SQLiteConnection(_path, flags);
+    }
+
+    public void Close()
+    {
+        if (_db != null)
         {
-            _path = path;
-            ReOpen(write);
+            _db.Close();
+            _db.Dispose();
+            _db = null;
         }
+    }
 
-        private void ReOpen(bool write)
+    private bool disposedValue;
+
+    public TableQuery<Region> Regions
+    {
+        get
         {
-            Close();
-
-            SQLiteOpenFlags flags =
-                write ? SQLiteOpenFlags.ReadWrite : SQLiteOpenFlags.ReadOnly;
-
-            _db = new SQLiteConnection(_path, flags);
+            return _db.Table<Region>();
         }
+    }
 
-        public void Close()
+    public TableQuery<City> Cities
+    {
+        get
         {
-            if (_db != null)
-            {
-                _db.Close();
-                _db.Dispose();
-                _db = null;
-            }
+            return _db.Table<City>();
         }
+    }
 
-        private bool disposedValue;
+    public void PurgeAll<T>()
+    {
+        _db.Execute($"DELETE FROM {typeof(T).Name.ToUpperInvariant()}");
+    }
 
-        public TableQuery<Region> Regions
+    public void InsertAll<T>(IEnumerable<T> values)
+    {
+        _db.InsertAll(values);
+        _db.Execute("VACUUM"); // Shrink DB
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
         {
-            get
-            {
-                return _db.Table<Region>();
-            }
-        }
+            if (disposing)
+                Close();
 
-        public TableQuery<City> Cities
-        {
-            get
-            {
-                return _db.Table<City>();
-            }
+            disposedValue = true;
         }
+    }
 
-        public void PurgeAll<T>()
-        {
-            _db.Execute($"DELETE FROM {typeof(T).Name.ToUpperInvariant()}");
-        }
-
-        public void InsertAll<T>(IEnumerable<T> values)
-        {
-            _db.InsertAll(values);
-            _db.Execute("VACUUM"); // Shrink DB
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                    Close();
-
-                disposedValue = true;
-            }
-        }
-
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
+    public void Dispose()
+    {
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }

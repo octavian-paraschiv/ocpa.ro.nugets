@@ -1,8 +1,9 @@
-﻿using Microsoft.Extensions.Caching.Memory;
-using OPMFileUploader;
+﻿using FileUploader.Exceptions;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -14,44 +15,64 @@ using System.Threading.Tasks;
 
 namespace FileUploader;
 
-public abstract class BaseUploader
+public abstract class BaseUploader(string requestUrl, string authUrl, string loginId, string password)
 {
-    protected readonly string _requestUrl;
-    protected readonly string _authUrl;
+    protected readonly string _requestUrl = requestUrl ?? throw new ArgumentNullException(nameof(requestUrl));
+    protected readonly string _authUrl = authUrl ?? throw new ArgumentNullException(nameof(authUrl));
 
-    protected readonly string _loginId;
-    protected readonly string _password;
+    protected readonly string _loginId = loginId;
+    protected readonly string _password = password;
 
-    protected readonly ManualResetEventSlim _completed = new ManualResetEventSlim(false);
-
-    protected static MemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions
+    protected static readonly MemoryCache _memoryCache = new(new MemoryCacheOptions
     {
         ExpirationScanFrequency = TimeSpan.FromSeconds(10),
     });
 
-    public BaseUploader(string requestUrl, string authUrl, string loginId, string password)
+    public async Task<string> Upload(CancellationToken cancellationToken)
     {
-        _requestUrl = requestUrl ?? throw new ArgumentNullException(nameof(requestUrl));
-        _authUrl = authUrl ?? throw new ArgumentNullException(nameof(authUrl));
-
-        _loginId = loginId;
-        _password = password;
+        try
+        {
+            return await PerformUpload(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return ex.Message;
+        }
     }
+
+    public async Task<string> Download(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await PerformDownload(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return ex.Message;
+        }
+    }
+
+    protected abstract Task<string> PerformUpload(CancellationToken cancellationToken);
+
+    protected abstract Task<string> PerformDownload(CancellationToken cancellationToken);
+
 
     protected static string GetHMACSHA1Hash(byte[] inputBytes, string key)
     {
         byte[] keyBytes = Encoding.UTF8.GetBytes(key);
 
-        using (var ms = new MemoryStream(inputBytes))
-        using (var hmac = new HMACSHA1(keyBytes))
-        {
-            var hash = hmac.ComputeHash(ms);
-            return Convert.ToBase64String(hash);
-        }
+        using var ms = new MemoryStream(inputBytes);
+        using var hmac = new HMACSHA1(keyBytes);
+
+        var hash = hmac.ComputeHash(ms);
+
+        return Convert.ToBase64String(hash);
     }
 
     protected async Task<AuthenticationHeaderValue> Authorize(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (string.IsNullOrEmpty(_loginId))
             return null;
 
@@ -63,7 +84,7 @@ public abstract class BaseUploader
         var dict = new Dictionary<string, string>
             {
                 { "LoginId", _loginId },
-                { "Password", Authentication.sendHash(_loginId, _password) }
+                { "Password", Authentication.SendHash(_loginId, _password) }
             };
 
         var content = new FormUrlEncodedContent(dict);
@@ -73,13 +94,16 @@ public abstract class BaseUploader
 
         try
         {
-            using HttpClient cl = new HttpClient();
+            using var cl = new HttpClient();
+
             cl.Timeout = TimeSpan.FromSeconds(30);
             cl.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue { NoCache = true };
 
-            var x = await cl.PostAsync(_authUrl, content, cancellationToken);
+            var rsp = await cl.PostAsync(_authUrl, content, cancellationToken);
 
-            string rspBody = (x?.Content != null) ? await x.Content.ReadAsStringAsync() : null;
+            await AnalyzeResponse(rsp);
+
+            string rspBody = (rsp?.Content != null) ? await rsp.Content.ReadAsStringAsync(cancellationToken) : null;
 
             if (!string.IsNullOrEmpty(rspBody))
                 authenticateResponse = JsonSerializer.Deserialize<AuthenticateResponse>(rspBody);
@@ -101,6 +125,30 @@ public abstract class BaseUploader
         }
 
         return new AuthenticationHeaderValue("Bearer", authenticateResponse.Token);
+    }
+
+    protected static async Task AnalyzeResponse(HttpResponseMessage response)
+    {
+        if (response.StatusCode != HttpStatusCode.OK)
+        {
+            if (response.Content != null)
+            {
+                string res;
+
+                try
+                {
+                    res = await response.Content.ReadAsStringAsync();
+                }
+                catch
+                {
+                    res = "";
+                }
+
+                throw new UploaderException($"{response.StatusCode}: {res}");
+            }
+
+            throw new UploaderException($"{response.StatusCode}");
+        }
     }
 
     protected sealed class AuthenticateResponse
